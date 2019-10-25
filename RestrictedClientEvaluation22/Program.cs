@@ -1,14 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.Common;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 
-namespace MultiFeatureDemo
+namespace MultiFeatureDemo22
 {
     public class Program
     {
@@ -33,25 +31,18 @@ namespace MultiFeatureDemo
             using (var context = new BlogContext(logCommand: true))
             {
                 var rencentBlogs = context.Blogs
-                    .Include(b => b.Posts)
-                    .Where(b =>
-                        b.Posts.Any(
-                            //p => EF.Functions.DateDiffDay(p.PublishDate, DateTime.Now) <= 60
-                            p => IsTitleStartWith(p, "")
-                        )
-                    );
+                    .Where(b => IsTitleStartWith(b, "")); ;
 
-                await foreach (var blog in rencentBlogs.AsAsyncEnumerable())
+                foreach (var blog in rencentBlogs)
                 {
                     Console.WriteLine(blog.Name);
-                    Console.WriteLine($"  - {blog.Posts.Count}");
                 }
             }
 
             Console.WriteLine("Program finished!");
         }
 
-        static bool IsTitleStartWith(Post post, string postTitle) => post.Title.StartsWith(postTitle);
+        static bool IsTitleStartWith(Blog blog, string blogName) => blog.Name.StartsWith(blogName);
 
         private static Author CreateAuthorBlogPost1() => new Author
         {
@@ -149,8 +140,6 @@ namespace MultiFeatureDemo
             {
                 optionsBuilder.UseLoggerFactory(ContextLoggerFactory);
             }
-
-            optionsBuilder.AddInterceptors(new MyCommandInterceptor());
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -206,38 +195,6 @@ namespace MultiFeatureDemo
                     }
                 }
             }
-        }
-    }
-
-    public class MyCommandInterceptor : DbCommandInterceptor
-    {
-        public override InterceptionResult<DbDataReader> ReaderExecuting(
-            DbCommand command,
-            CommandEventData eventData,
-            InterceptionResult<DbDataReader> result
-        )
-        {
-            if (command.CommandText.Contains("UnionQuery"))
-            {
-                command.CommandText = command.CommandText + Environment.NewLine + "OPTION (MERGE UNION)";
-            }
-
-            return base.ReaderExecuting(command, eventData, result);
-        }
-
-        public override Task<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
-            DbCommand command,
-            CommandEventData eventData,
-            InterceptionResult<DbDataReader> result,
-            CancellationToken cancellationToken = default
-        )
-        {
-            if (command.CommandText.Contains("UnionQuery"))
-            {
-                command.CommandText = command.CommandText + Environment.NewLine + "OPTION (MERGE UNION)";
-            }
-
-            return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
         }
     }
 
