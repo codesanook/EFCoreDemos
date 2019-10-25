@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 
-namespace MultiFeatureDemo22
+namespace SingleQuery
 {
     public class Program
     {
@@ -30,19 +30,19 @@ namespace MultiFeatureDemo22
 
             using (var context = new BlogContext(logCommand: true))
             {
-                var rencentBlogs = context.Blogs
-                    .Where(b => IsTitleStartWith(b, "")); ;
+                var postsOnMonday =
+                    from p in context.Posts
+                    where p.PublishDate.DayOfWeek == DayOfWeek.Monday 
+                    select p;
 
-                foreach (var blog in rencentBlogs)
+                foreach (var post in postsOnMonday)
                 {
-                    Console.WriteLine(blog.Name);
+                    Console.WriteLine(post.Title);
                 }
             }
 
             Console.WriteLine("Program finished!");
         }
-
-        static bool IsTitleStartWith(Blog blog, string blogName) => blog.Name.StartsWith(blogName);
 
         private static Author CreateAuthorBlogPost1() => new Author
         {

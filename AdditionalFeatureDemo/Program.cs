@@ -1,11 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 
-namespace MultiFeatureDemo22
+namespace SingleQuery
 {
     public class Program
     {
@@ -18,116 +17,94 @@ namespace MultiFeatureDemo22
 
                 if (context.Database.EnsureCreated())
                 {
-                    var blog = new Blog
+                    var post = new Post
                     {
-                        //Name = ".NET Blog",
-                        Url = "https://blogs.msdn.microsoft.com/dotnet",
-                        Author = "Codesanook Team",
-                        Posts =
-                        {
-                            new Post
-                            {
-                                Title = "Announcing Entity Framework Core 3.0",
-                                PublishDate = new DateTime(2019, 9, 12)
-                            }
-                        }
+                        Title = "Announcing Entity Framework Core 3.0",
+                        PublishDate = new DateTime(2019, 9, 12)
                     };
 
-                    context.Blogs.Add(blog);
-                    context.SaveChanges();
-
-                    Console.WriteLine($"blogId = {blog.BlogId}");
-                }
+                context.Posts.Add(post);
+                context.SaveChanges();
+                Console.WriteLine($"postId = {post.PostId}");
             }
         }
+    }
+}
 
+public class PostContext : DbContext
+{
+    private readonly bool _logCommand;
+
+    private static ILoggerFactory ContextLoggerFactory => new ConsoleLoggerFactory();
+
+    public PostContext(bool logCommand = false) => _logCommand = logCommand;
+
+    // Declare DBSets
+    // Null forgiving operator to turns off the compiler-checks
+    public DbSet<Post> Posts { get; set; } = null!;
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        // Select 1 provider
+        optionsBuilder
+            .UseSqlServer(@"Server=(localdb)\mssqllocaldb;Database=BloggingDemo;Trusted_Connection=True;Connect Timeout=5;ConnectRetryCount=0")
+            .EnableSensitiveDataLogging();
+
+        if (_logCommand)
+        {
+            optionsBuilder.UseLoggerFactory(ContextLoggerFactory);
+        }
     }
 
-
-    public class PostContext : DbContext
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        private readonly bool _logCommand;
+        // Configure model
+    }
 
-        private static ILoggerFactory ContextLoggerFactory => new ConsoleLoggerFactory();
+    private class ConsoleLoggerFactory : ILoggerFactory
+    {
+        private readonly SqlLogger _logger;
+        public ConsoleLoggerFactory() => _logger = new SqlLogger();
 
-        public PostContext(bool logCommand = false) => _logCommand = logCommand;
-
-        // Declare DBSets
-        //null forgiving operator turns off the compiler-checks
-        public DbSet<Post> Posts { get; set; } = null!;
-        public DbSet<Blog> Blogs { get; set; } = null!;
-
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        public void AddProvider(ILoggerProvider provider)
         {
-            // Select 1 provider
-            optionsBuilder
-                .UseSqlServer(@"Server=(localdb)\mssqllocaldb;Database=BloggingDemo;Trusted_Connection=True;Connect Timeout=5;ConnectRetryCount=0")
-                .EnableSensitiveDataLogging();
-
-            if (_logCommand)
-            {
-                optionsBuilder.UseLoggerFactory(ContextLoggerFactory);
-            }
         }
 
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        public ILogger CreateLogger(string categoryName) => _logger;
+
+        public void Dispose()
         {
-            // Configure model
         }
 
-        private class ConsoleLoggerFactory : ILoggerFactory
+        private class SqlLogger : ILogger
         {
-            private readonly SqlLogger _logger;
-            public ConsoleLoggerFactory() => _logger = new SqlLogger();
+            public IDisposable BeginScope<TState>(TState state) => null;
 
-            public void AddProvider(ILoggerProvider provider)
+            public bool IsEnabled(LogLevel logLevel) => true;
+
+            public void Log<TState>(
+                LogLevel logLevel,
+                EventId eventId,
+                TState state,
+                Exception exception,
+                Func<TState, Exception, string> formatter
+            )
             {
-            }
-
-            public ILogger CreateLogger(string categoryName) => _logger;
-
-            public void Dispose()
-            {
-            }
-
-            private class SqlLogger : ILogger
-            {
-                public IDisposable BeginScope<TState>(TState state) => null;
-
-                public bool IsEnabled(LogLevel logLevel) => true;
-
-                public void Log<TState>(
-                    LogLevel logLevel,
-                    EventId eventId,
-                    TState state,
-                    Exception exception,
-                    Func<TState, Exception, string> formatter
-                )
+                if (eventId == RelationalEventId.CommandExecuted)
                 {
-                    if (eventId == RelationalEventId.CommandExecuted)
-                    {
-                        var message = formatter(state, exception)?.Trim();
-                        Console.WriteLine(message + Environment.NewLine);
-                    }
+                    var message = formatter(state, exception)?.Trim();
+                    Console.WriteLine(message + Environment.NewLine);
                 }
             }
         }
     }
+}
 
 
-    public class Blog
-    {
-        public int BlogId { get; set; }
-        public string? Name { get; set; } = null!;
-        public string Url { get; set; } = null!;
-        public string Author { get; set; } = null!;
-        public ICollection<Post> Posts { get; set; } = new HashSet<Post>();
-    }
-
-    public class Post
-    {
-        public int PostId { get; set; }
-        public string Title { get; set; } = null!;
-        public DateTime PublishDate { get; set; }
-    }
+public class Post
+{
+    public int PostId { get; set; }
+    public string Title { get; set; } = null!;
+    public DateTime PublishDate { get; set; }
+}
 }

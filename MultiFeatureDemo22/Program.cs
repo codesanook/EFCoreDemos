@@ -1,12 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 
-namespace MultiFeatureDemo22
+namespace SingleQuery
 {
     public class Program
     {
@@ -30,19 +29,17 @@ namespace MultiFeatureDemo22
 
             using (var context = new BlogContext(logCommand: true))
             {
-                var rencentBlogs = context.Blogs
-                    .Where(b => IsTitleStartWith(b, "")); ;
+                var allBlogsWithPosts = context.Blogs.Include(b => b.Posts);
 
-                foreach (var blog in rencentBlogs)
+                foreach (var blog in allBlogsWithPosts)
                 {
                     Console.WriteLine(blog.Name);
+                    Console.WriteLine($" - {blog.Posts.Count}");
                 }
             }
 
             Console.WriteLine("Program finished!");
         }
-
-        static bool IsTitleStartWith(Blog blog, string blogName) => blog.Name.StartsWith(blogName);
 
         private static Author CreateAuthorBlogPost1() => new Author
         {

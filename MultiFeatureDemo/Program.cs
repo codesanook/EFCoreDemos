@@ -32,26 +32,17 @@ namespace MultiFeatureDemo
 
             using (var context = new BlogContext(logCommand: true))
             {
-                var rencentBlogs = context.Blogs
-                    .Include(b => b.Posts)
-                    .Where(b =>
-                        b.Posts.Any(
-                            //p => EF.Functions.DateDiffDay(p.PublishDate, DateTime.Now) <= 60
-                            p => IsTitleStartWith(p, "")
-                        )
-                    );
+                var allBlogsWithPosts = context.Blogs.Include(b => b.Posts);
 
-                await foreach (var blog in rencentBlogs.AsAsyncEnumerable())
+                foreach (var blog in allBlogsWithPosts)
                 {
                     Console.WriteLine(blog.Name);
-                    Console.WriteLine($"  - {blog.Posts.Count}");
+                    Console.WriteLine($" - {blog.Posts.Count}");
                 }
             }
 
             Console.WriteLine("Program finished!");
         }
-
-        static bool IsTitleStartWith(Post post, string postTitle) => post.Title.StartsWith(postTitle);
 
         private static Author CreateAuthorBlogPost1() => new Author
         {
